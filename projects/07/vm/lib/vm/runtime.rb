@@ -97,10 +97,8 @@ module VM
       END_HACK
     end
 
-    def jump_to_label(variable, condition, label)
+    def jump_to_label(condition, label)
       add_hack(<<-END_HACK)
-      @#{variable}
-      D=M
       @label:#{label}
       D;J#{condition}
       END_HACK

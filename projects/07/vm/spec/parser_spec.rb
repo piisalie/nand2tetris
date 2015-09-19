@@ -24,6 +24,6 @@ describe VM::Parser do
     parser = VM::Parser.new("UNRECOGNIZEDTOKEN")
     expect do
       parser.parse
-    end.to raise_error
+    end.to raise_error(RuntimeError)
   end
 end
