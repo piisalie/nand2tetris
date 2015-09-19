@@ -8,8 +8,12 @@ module VM
     end
 
     def write_to(runtime, options = { })
-      runtime.load_data(number: 1) if !conditional
-      runtime.pop
+      if conditional
+        runtime.pop
+      else
+        runtime.load_data(number: 1)
+      end
+
       runtime.jump_to_label("NE", options.fetch(:params).fetch(:label_name))
     end
 
