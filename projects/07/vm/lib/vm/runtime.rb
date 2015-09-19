@@ -12,49 +12,52 @@ module VM
     attr_reader :hack
     private     :hack
 
-    def pop(variable)
+    def push
+      add_hack(<<-END_HACK)
+      @SP
+      M=M+1
+      A=M-1
+      M=D
+      END_HACK
+    end
+
+    def pop(expression: "M")
       add_hack(<<-END_HACK)
       @SP
       M=M-1
       A=M
-      D=M
-      @#{variable}
-      M=D
+      D=#{expression}
       END_HACK
     end
 
-    def push(variable, as: "M")
+    def load_data(number: )
       add_hack(<<-END_HACK)
-      @#{variable}
-      D=#{as}
-      @SP
-      M=M+1
-      A=M-1
-      M=D
+      @#{number}
+      D=A
       END_HACK
     end
 
-    def read(pointer, offset, variable)
+    def read(pointer: , offset: , register: )
       add_hack(<<-END_HACK)
       @#{offset}
       D=A
       @#{pointer}
-      A=M+D
+      A=D+#{register ? "A" : "M"}
       D=M
-      @#{variable}
-      M=D
       END_HACK
     end
 
-    def write(pointer, offset, variable)
+    def write(pointer: , offset: , register: )
       add_hack(<<-END_HACK)
+      @write_data
+      M=D
       @#{offset}
       D=A
       @#{pointer}
-      D=M+D
+      D=D+#{register ? "A" : "M"}
       @write_address
       M=D
-      @#{variable}
+      @write_data
       D=M
       @write_address
       A=M
@@ -62,39 +65,21 @@ module VM
       END_HACK
     end
 
-    def operation(left, op, right, result)
-      add_hack((left ? <<-END_LEFT : "") + <<-END_HACK)
-      @#{left}
-      D=M
-      @#{result}
-      M=D
-      END_LEFT
-      @#{right}
-      D=M
-      @#{result}
-      M=#{'M' if left}#{op}D
-      END_HACK
-    end
-
-    def jump(variable, condition)
+    def jump(comparison: )
       @last_conditional += 1
       add_hack(<<-END_HACK)
-      @#{variable}
-      D=M
-      @TRUE#{@last_conditional}
-      D;J#{condition}
-      @SP
-      M=M+1
-      A=M-1
-      M=0
-      @DONE#{@last_conditional}
+      @CONDITIONAL_#{@last_conditional}:TRUE
+      D;J#{comparison}
+      D=0
+      @CONDITIONAL_#{@last_conditional}:FINISH
       0;JMP
-      (TRUE#{@last_conditional})
+      (CONDITIONAL_#{@last_conditional}:TRUE)
+        D=-1
+      (CONDITIONAL_#{@last_conditional}:FINISH)
         @SP
         M=M+1
         A=M-1
-        M=-1
-      (DONE#{@last_conditional})
+        M=D
       END_HACK
     end
 
@@ -105,7 +90,7 @@ module VM
     end
 
     def to_s
-      (hack + <<-END_HACK).gsub(/^\s+/, "")
+      (hack + <<-END_HACK).gsub(/^\s+(\(?)/) { "#{'  ' if $1 != '('}#{$1}" }
       (END)
         @END
         0;JMP
